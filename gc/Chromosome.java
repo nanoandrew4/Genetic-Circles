@@ -1,30 +1,33 @@
-import javafx.scene.paint.Paint;
-import javafx.scene.shape.Circle;
+package gc;
+
+import kn.uni.voronoitreemap.j2d.Point2D;
+
+/*
+    Contains and manipulates all chromosome data
+ */
 
 public class Chromosome {
 
     static int maxSize; // max size of initial chromosome
 
-    StringBuffer chromo; // encoded chromosome in binary
+    private StringBuffer chromo; // encoded chromosome in binary
     double fitness; // fitness score
-    static double crossoverRate = 0.7; // see crossover function for utilization info
-    static double mutationRate = 0.001; // see mutation function for utilization info
 
     // initializes chromosome with random size and coordinates
     Chromosome() {
         chromo = new StringBuffer(Main.geneLength * 3);
 
-        int size = Main.rand.nextInt(maxSize);
+        int size = GlobalVars.rand.nextInt(maxSize);
         addGene(size); // first gene is size of circle
-        addGene(Main.rand.nextInt(Main.screenWidth - size)); // second gene is top-left x-coord of circle
-        addGene(Main.rand.nextInt(Main.screenHeight - size)); // third gene is top-left y-coord of circle
+        addGene(GlobalVars.rand.nextInt(GlobalVars.screenWidth - size)); // second gene is center x-coord of circle
+        addGene(GlobalVars.rand.nextInt(GlobalVars.screenHeight - size)); // third gene is center y-coord of circle
 
         // calculates initial fitness
         calcFitness();
     }
 
     // adds gene to the chromosome, encoded in binary
-    void addGene(int i) {
+    private void addGene(int i) {
         String gene = Integer.toBinaryString(i);
         for (int x = gene.length(); x < Main.geneLength; x++)
             chromo.append('0');
@@ -42,9 +45,9 @@ public class Chromosome {
     }
 
     // returns new circle object with the data provided by the chromosome in this chromosome object
-    Circle getCircle() {
+    CircleData getCircleData() {
         String[] genes = decode().split("-");
-        return new Circle(Integer.valueOf(genes[1]), Integer.valueOf(genes[2]), Integer.valueOf(genes[0]), Paint.valueOf("red"));
+        return new CircleData(Integer.valueOf(genes[0]), new Point2D(Integer.valueOf(genes[1]),  Integer.valueOf(genes[2])));
     }
 
     // calculates fitness of circle
@@ -59,23 +62,24 @@ public class Chromosome {
             but fitness score is decreased
          */
         String[] genes = decode().split("-");
-        if (Integer.valueOf(genes[0]) >= Main.largestRadius * Main.proximityToMax)
+        if (Integer.valueOf(genes[0]) >= GlobalVars.largestRadius * GlobalVars.proximityToMax)
             fitness = Integer.MAX_VALUE;
         else
-            fitness = 1 / Math.abs(Main.largestRadius - Integer.valueOf(genes[0]));
+            fitness = 1 / Math.abs(GlobalVars.largestRadius - (Integer.valueOf(genes[0])));
 
-        if (!Main.isEmpty(new Circle(Integer.valueOf(genes[1]), Integer.valueOf(genes[2]), Integer.valueOf(genes[0]))))
-            fitness /= 10;
+        if (!Main.isValid(getCircleData()))
+            fitness /= 5;
+
     }
 
     // swaps bits from chromosomes from a random position, either forward or backwards
     void crossover(Chromosome c) {
-        if (Main.rand.nextDouble() > crossoverRate)
+        if (GlobalVars.rand.nextDouble() > GlobalVars.crossoverRate)
             return;
 
-        int pos = Main.rand.nextInt(chromo.length());
+        int pos = GlobalVars.rand.nextInt(chromo.length());
 
-        if (Main.rand.nextBoolean())
+        if (GlobalVars.rand.nextBoolean())
             for (int x = pos; x < chromo.length(); x++) {
                 char tmp = c.chromo.charAt(x);
                 c.chromo.setCharAt(x, this.chromo.charAt(x));
@@ -91,10 +95,10 @@ public class Chromosome {
 
     // mutates a random bit in the chromosome
     void mutate() {
-        if (Main.rand.nextDouble() > mutationRate)
+        if (GlobalVars.rand.nextDouble() > GlobalVars.mutationRate)
             return;
 
-        int pos = Main.rand.nextInt(chromo.length() - 1);
+        int pos = GlobalVars.rand.nextInt(chromo.length() - 1);
         chromo.setCharAt(pos, chromo.charAt(pos) == '0' ? '1' : '0');
     }
 }

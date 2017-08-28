@@ -1,5 +1,6 @@
+package gc;
+
 import javafx.scene.paint.Paint;
-import javafx.scene.shape.Circle;
 import javafx.scene.shape.Polygon;
 import kn.uni.voronoitreemap.datastructure.OpenList;
 import kn.uni.voronoitreemap.diagram.PowerDiagram;
@@ -10,7 +11,6 @@ import kn.uni.voronoitreemap.j2d.Site;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
-import java.util.Random;
 
 /*
     Code in this class to draw voronoi diagram sourced from GitHub:
@@ -22,37 +22,34 @@ import java.util.Random;
 
 public class Fitness {
 
-    private int circlesRadius = 5; // pixel radius of static circles
-    static int circles; // so validity checking function does not get confused and throw out of bounds
-
     // constructor
     Fitness() {}
 
     // returns largest possible radius of circle using voronoi diagram
-    int getBiggestCircle(boolean drawCircle, boolean drawVoronoi) {
+    CircleData getBiggestCircle(boolean drawVoronoi) {
 
         PowerDiagram diagram = new PowerDiagram();
 
         // normal list based on an array
         OpenList sites = new OpenList();
-
-        Random rand = new Random();
         // create a root polygon which limits the voronoi diagram.
         // here it is just a rectangle.
 
         PolygonSimple rootPolygon = new PolygonSimple();
-        int width = Main.screenWidth;
-        int height = Main.screenHeight;
+        int width = GlobalVars.screenWidth;
+        int height = GlobalVars.screenHeight;
         rootPolygon.add(0, 0);
         rootPolygon.add(width, 0);
         rootPolygon.add(width, height);
         rootPolygon.add(0, height);
 
-        circles = rand.nextInt(55) + 15;
+        int circleCount = GlobalVars.rand.nextInt(85) + 15;
+        GlobalVars.circles = new Point2D[circleCount];
 
         // create points (sites) and set random positions in the rectangle defined above
-        for (int i = 0; i < circles; i++) {
-            Site site = new Site(rand.nextInt(width), rand.nextInt(height));
+        for (int i = 0; i < circleCount; i++) {
+            Site site = new Site(GlobalVars.rand.nextInt(width - GlobalVars.circlesRadius) + GlobalVars.circlesRadius,
+                    GlobalVars.rand.nextInt(height - GlobalVars.circlesRadius) + GlobalVars.circlesRadius);
             // we could also set a different weighting to some sites
             // site.setWeight(30)
             sites.add(site);
@@ -72,7 +69,7 @@ public class Fitness {
         // for each site we can no get the resulting polygon of its cell
         // note that the cell can also be empty, in this case there is no polygon for the corresponding site
         // if drawVoronoi is true, fills cell with random color specified in colors array
-        for (int i=0;i<sites.size;i++){
+        for (int i = 0; i < sites.size; i++){
             Site site=sites.array[i];
             PolygonSimple polygon=site.getPolygon();
             if (polygon == null)
@@ -85,10 +82,11 @@ public class Fitness {
                 }
 
                 p.relocate(polygon.getBounds().getX(), polygon.getBounds().getY());
-                p.setFill(Paint.valueOf(colors[rand.nextInt(colors.length)]));
+                p.setFill(Paint.valueOf(colors[GlobalVars.rand.nextInt(colors.length)]));
                 Main.pane.getChildren().add(p);
             }
-            Main.pane.getChildren().add(new Circle(polygon.getCentroid().getX(), polygon.getCentroid().getY(), circlesRadius, Paint.valueOf("black")));
+
+            GlobalVars.circles[i] = new Point2D(polygon.getCentroid().getX(), polygon.getCentroid().getY());
         }
 
         ArrayList<Point2D> vertexes = new ArrayList<>(); // stores all vertexes that exist in the diagram
@@ -109,9 +107,9 @@ public class Fitness {
         for (int x = 0; x < vertexes.size(); x++) {
             double distance = Double.MAX_VALUE;
             Point2D v = vertexes.get(x);
-            for (int a = 0; a < centroids.size(); a++) {
-                if (calcEucledianDistance(v, centroids.get(a)) < distance)
-                    distance = calcEucledianDistance(v, centroids.get(a));
+            for (Point2D centroid : centroids) {
+                if (calcEucledianDistance(v, centroid) < distance)
+                    distance = calcEucledianDistance(v, centroid);
             }
 
             radiiList.add(distance);
@@ -125,20 +123,15 @@ public class Fitness {
 
         // find largest valid circle and set return radius for that circle
         for (int x = circleCoords.length - 1; x >= 0; x--) {
-            Circle c = new Circle(vertexes.get(circleCoords[x]).getX(), vertexes.get(circleCoords[x]).getY(), radii[x] - circlesRadius, Paint.valueOf("green"));
-            if (isEmpty(c)) {
-                if (drawCircle)
-                    Main.pane.getChildren().add(c);
-                System.out.println("circle drawn");
-                System.out.println("Biggest radius possible: " + ((int)c.getRadius() - circlesRadius));
-                return (int)c.getRadius() - circlesRadius;
-            }
+            CircleData cd = new CircleData((int)(double)radii[x] - GlobalVars.circlesRadius, vertexes.get(circleCoords[x]));
+            if (Main.isValid(cd))
+                return cd;
         }
 
-        return -1;
+        return null;
     }
 
-    void doubleArrQuickSort(int lPivot, int rPivot, Double[] independent, Integer[] dependant) {
+    private void doubleArrQuickSort(int lPivot, int rPivot, Double[] independent, Integer[] dependant) {
 
         /*
             Sorts two arrays using the quicksort algorithm, but only the independent one is truly sorted. When the value at
@@ -173,31 +166,18 @@ public class Fitness {
     }
 
     // calculates eucledian distance between two points
-    double calcEucledianDistance(Point2D p1, Point2D p2) {
+    static double calcEucledianDistance(Point2D p1, Point2D p2) {
         return Math.sqrt(Math.pow(p1.getX() - p2.getX(), 2) + Math.pow(p1.getY() - p2.getY(), 2));
     }
+}
 
-    // determines if a circle object is out of bounds of the window
-    boolean outOfBounds(Circle c) {
-        return !(c.getCenterX() < c.getRadius() || c.getCenterX() > Main.screenWidth - c.getRadius() ||
-                c.getCenterY() < c.getRadius() || c.getCenterY() > Main.screenHeight - c.getRadius());
-    }
+class CircleData {
 
-    // determines if a circle is either out of bounds or colliding with other screen elements
-    boolean isEmpty(Circle c) {
+    int radius;
+    Point2D coords;
 
-        if (!outOfBounds(c))
-            return false;
-
-        // last element will be genetic circle, do not check, nor the text element
-        for (int x = 0; x < Main.pane.getChildren().size(); x++) {
-            if (Main.pane.getChildren().get(x) instanceof Circle) {
-                Circle test = (Circle) Main.pane.getChildren().get(x);
-                if (c.contains(test.getCenterX(), test.getCenterY()))
-                    return false;
-            }
-        }
-
-        return true;
+    CircleData(int radius, Point2D coords) {
+        this.radius = radius;
+        this.coords = coords;
     }
 }
