@@ -74,9 +74,9 @@ class GeneticAlgorithm extends Thread {
                     c = c2;
 
                 if (c != null) {
-                    if (Main.pane != null) {
+                    if (UI.pane != null) {
                         CircleData cd = c.getCircleData();
-                        Platform.runLater(() -> Main.draw(new Circle(cd.coords.getX(), cd.coords.getY(), cd.radius, Paint.valueOf("red")), gen));
+                        Platform.runLater(() -> UI.draw(new Circle(cd.coords.getX(), cd.coords.getY(), cd.radius, Paint.valueOf("red")), gen));
                     }
                     System.out.println(output = "Circle with seed " + seed + " from generation " + gen + " with proximity of " + ((Double.valueOf(c.decode().split("-")[0])) / largestRadius) * 100d
                             + "% and radius " + (Integer.valueOf(c.decode().split("-")[0])) + " is a valid solution");
@@ -102,8 +102,8 @@ class GeneticAlgorithm extends Thread {
             //Platform.runLater(() -> {gc.Main.draw(Integer.valueOf(genes[1]), Integer.valueOf(genes[2]), Integer.valueOf(genes[0]));});
 
             // will run algorithm faster
-            if (Main.pane != null)
-                Platform.runLater(() -> Main.draw(-1, -1, -1, gen));
+            if (UI.pane != null)
+                Platform.runLater(() -> UI.draw(-1, -1, -1, gen));
         }
     }
 

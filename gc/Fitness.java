@@ -81,7 +81,7 @@ public class Fitness {
 
                 p.relocate(polygon.getBounds().getX(), polygon.getBounds().getY());
                 p.setFill(Paint.valueOf(colors[rand.nextInt(colors.length)]));
-                Main.pane.getChildren().add(p);
+                UI.pane.getChildren().add(p);
             }
 
             circles[i] = new Point2D(polygon.getCentroid().getX(), polygon.getCentroid().getY());
