@@ -11,6 +11,7 @@ import kn.uni.voronoitreemap.j2d.Site;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
+import java.util.Random;
 
 /*
     Code in this class to draw voronoi diagram sourced from GitHub:
@@ -26,7 +27,7 @@ public class Fitness {
     Fitness() {}
 
     // returns largest possible radius of circle using voronoi diagram
-    CircleData getBiggestCircle(boolean drawVoronoi) {
+    CircleData getBiggestCircle(Point2D[] circles, Random rand, boolean drawVoronoi) {
 
         PowerDiagram diagram = new PowerDiagram();
 
@@ -43,13 +44,10 @@ public class Fitness {
         rootPolygon.add(width, height);
         rootPolygon.add(0, height);
 
-        int circleCount = GlobalVars.rand.nextInt(85) + 15;
-        GlobalVars.circles = new Point2D[circleCount];
-
         // create points (sites) and set random positions in the rectangle defined above
-        for (int i = 0; i < circleCount; i++) {
-            Site site = new Site(GlobalVars.rand.nextInt(width - GlobalVars.circlesRadius) + GlobalVars.circlesRadius,
-                    GlobalVars.rand.nextInt(height - GlobalVars.circlesRadius) + GlobalVars.circlesRadius);
+        for (int i = 0; i < circles.length; i++) {
+            Site site = new Site(rand.nextInt(width - GlobalVars.circlesRadius) + GlobalVars.circlesRadius,
+                    rand.nextInt(height - GlobalVars.circlesRadius) + GlobalVars.circlesRadius);
             // we could also set a different weighting to some sites
             // site.setWeight(30)
             sites.add(site);
@@ -69,9 +67,9 @@ public class Fitness {
         // for each site we can no get the resulting polygon of its cell
         // note that the cell can also be empty, in this case there is no polygon for the corresponding site
         // if drawVoronoi is true, fills cell with random color specified in colors array
-        for (int i = 0; i < sites.size; i++){
+        for (int i = 0; i < circles.length; i++){
             Site site=sites.array[i];
-            PolygonSimple polygon=site.getPolygon();
+            PolygonSimple polygon = site.getPolygon();
             if (polygon == null)
                 continue;
 
@@ -82,11 +80,11 @@ public class Fitness {
                 }
 
                 p.relocate(polygon.getBounds().getX(), polygon.getBounds().getY());
-                p.setFill(Paint.valueOf(colors[GlobalVars.rand.nextInt(colors.length)]));
+                p.setFill(Paint.valueOf(colors[rand.nextInt(colors.length)]));
                 Main.pane.getChildren().add(p);
             }
 
-            GlobalVars.circles[i] = new Point2D(polygon.getCentroid().getX(), polygon.getCentroid().getY());
+            circles[i] = new Point2D(polygon.getCentroid().getX(), polygon.getCentroid().getY());
         }
 
         ArrayList<Point2D> vertexes = new ArrayList<>(); // stores all vertexes that exist in the diagram
@@ -124,7 +122,7 @@ public class Fitness {
         // find largest valid circle and set return radius for that circle
         for (int x = circleCoords.length - 1; x >= 0; x--) {
             CircleData cd = new CircleData((int)(double)radii[x] - GlobalVars.circlesRadius, vertexes.get(circleCoords[x]));
-            if (Main.isValid(cd))
+            if (Main.isValid(cd, circles))
                 return cd;
         }
 

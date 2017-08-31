@@ -1,7 +1,6 @@
 package gc;
 
 import javafx.application.Application;
-import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Paint;
@@ -12,6 +11,7 @@ import javafx.stage.Stage;
 import kn.uni.voronoitreemap.j2d.Point2D;
 
 import java.util.ArrayList;
+import java.util.Random;
 
 /*
     Launches UI along with the Genetic Algorithm
@@ -20,14 +20,59 @@ import java.util.ArrayList;
 public class Main extends Application {
 
     static Pane pane;
+    private Point2D[] circles;
+    private Random rand = new Random(seed);
 
     private static Circle geneticCircle;
     private static Text genText;
 
-    static int geneLength;
+    static int geneLength, largestRadius;
+    private static long seed = 2;
 
     public static void main(String[] args) {
-        launch();
+        String generalInfo = "Run program with no arguments to output help on usage";
+        if (args.length == 1 && args[0].equals("ui")) {
+            seed = System.currentTimeMillis();
+            launch();
+        } else if (args.length == 2 && args[0].equals("ui")) {
+            try {
+                seed = Integer.valueOf(args[1]);
+                if (seed < 0) {
+                    System.out.println("Illegal argument. Please enter positive integer to be used as seed. " + generalInfo);
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("Illegal argument. Please enter positive integer to be used as seed. " + generalInfo);
+                return;
+            }
+            launch();
+        } else if (args.length == 3 && args[0].equals("headless")) {
+            if ((args[1].equals("true") || args[1].equals("false")))
+                DataCollector.generateFile = args[1].equals("true");
+            else {
+                System.out.println("Second argument must be either \"true\" or \"false\". " + generalInfo);
+                return;
+            }
+            try {
+                DataCollector.runs = Integer.valueOf(args[2]);
+                if (DataCollector.runs < 1) {
+                    System.out.println("Illegal argument. Runs value must be higher than 0. " + generalInfo);
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("Illegal argument. Please enter positive integer to be used as seed. " + generalInfo);
+                return;
+            }
+
+            new DataCollector();
+        } else {
+            System.out.println("To use graphical version: java -jar GeneticCircles.jar ui [seed]");
+            System.out.println("Seed argument is a positive integer representing the seed to be used when generating random numbers, and is optional");
+            System.out.println();
+            System.out.println("To use non-graphical version: java -jar GeneticCircles.jar headless [GenerateFile] [runs]");
+            System.out.println("GenerateFile is either true or false, and specifies whether the program should write the results to a text file");
+            System.out.println("Runs is a positive integer representing the number of iterations to do of the genetic algorithm " +
+                    " with seed values starting from 0 and ending at (runs - 1)");
+        }
     }
 
     @Override
@@ -45,13 +90,15 @@ public class Main extends Application {
         pane = new Pane();
         Scene scene = new Scene(pane, GlobalVars.screenWidth, GlobalVars.screenHeight);
 
+        circles = new Point2D[rand.nextInt(85) + 15];
+
         // see fitness class for specification on what it does, returns largest radius that can be drawn in the window
-        CircleData cd = new Fitness().getBiggestCircle(false);
-        GlobalVars.largestRadius = cd.radius;
+        CircleData cd = new Fitness().getBiggestCircle(circles, rand, false);
+        largestRadius = cd.radius;
         System.out.println("largest radius: " + cd.radius);
 
         // add static circles to display
-        for (Point2D circle : GlobalVars.circles)
+        for (Point2D circle : circles)
             pane.getChildren().add(new Circle(circle.getX(), circle.getY(), GlobalVars.circlesRadius));
 
         // draw largest circle as determined by the voronoi diagram
@@ -61,7 +108,7 @@ public class Main extends Application {
         geneticCircle = new Circle(-10, -10, 1);
         pane.getChildren().add(geneticCircle);
 
-        genText = new Text(10, 30, "Generation: " + GlobalVars.gen);
+        genText = new Text(10, 30, "Generation: 0");
         genText.setFont(Font.font(20));
         pane.getChildren().add(genText);
 
@@ -70,7 +117,7 @@ public class Main extends Application {
 
         // launches genetic algorithm thread
 
-        GeneticAlgorithm gA = new GeneticAlgorithm();
+        GeneticAlgorithm gA = new GeneticAlgorithm(circles, (int)seed, largestRadius);
         Thread t = new Thread(gA);
 
         t.setDaemon(true);
@@ -85,16 +132,16 @@ public class Main extends Application {
     }
 
     // returns whether circle intersects any others
-    static boolean isValid(CircleData c) {
+    static boolean isValid(CircleData c, Point2D[] circles) {
 
         if (outOfBounds(c))
             return false;
 
         // last element will be genetic circle, do not check, nor the text element
-        for (Point2D circle : GlobalVars.circles)
-            if (Fitness.calcEucledianDistance(c.coords, circle) < c.radius + GlobalVars.circlesRadius)
+        for (Point2D circle : circles) {
+            if (circle != null && Fitness.calcEucledianDistance(c.coords, circle) < c.radius + GlobalVars.circlesRadius)
                 return false;
-
+        }
         return true;
     }
 
@@ -115,97 +162,18 @@ public class Main extends Application {
     }
 
     // draws best circle from the generation and updates text
-    static void draw(int x, int y, int radius) {
+    static void draw(int x, int y, int radius, int gen) {
         //pane.getChildren().remove(geneticCircle);
         //geneticCircle = new Circle(x, y, radius, Paint.valueOf("red"));
         //pane.getChildren().add(geneticCircle);
-        genText.setText("Generation: " + GlobalVars.gen);
+        genText.setText("Generation: " + gen);
     }
 
     // draws final circle that conforms to specifications
-    static void draw(Circle c) {
+    static void draw(Circle c, int gen) {
         pane.getChildren().remove(geneticCircle);
         geneticCircle = c;
         pane.getChildren().add(geneticCircle);
-        genText.setText("Final generation: " + GlobalVars.gen);
-    }
-}
-
-class GeneticAlgorithm extends Thread {
-
-    private ArrayList<Chromosome> pool;
-    private ArrayList<Chromosome> newPool;
-
-    // initializes pools
-    GeneticAlgorithm() {
-        pool = new ArrayList<>(GlobalVars.poolSize);
-        newPool = new ArrayList<>(GlobalVars.poolSize);
-
-        for (int x = 0; x < GlobalVars.poolSize; x++)
-            pool.add(new Chromosome());
-    }
-
-    // runs genetic algorithm
-    public void run() {
-
-        while (true) {
-            for (int x = 0; x < GlobalVars.poolSize; x+=2) {
-                Chromosome c1 = Main.selectFittest(pool);
-                Chromosome c2 = Main.selectFittest(pool);
-
-                // cross chromosomes at random point, read crossover function in gc.Chromosome class for more detailed info
-                c1.crossover(c2);
-
-                // mutate chromosomes, read mutate function in gc.Chromosome class for more detailed info
-                c1.mutate();
-                c2.mutate();
-
-                // recalculate fitness for both chromosomes
-                c1.calcFitness();
-                c2.calcFitness();
-
-                // if either chromosome is a valid solution, stops thread from running and draws solution to screen
-                if (c1.fitness == Integer.MAX_VALUE && Main.isValid(c1.getCircleData())) {
-                    System.out.println("Circle of generation " + GlobalVars.gen + " is a valid solution");
-                    if (Main.pane != null) {
-                        CircleData cd = c1.getCircleData();
-                        Platform.runLater(() -> Main.draw(new Circle(cd.coords.getX(), cd.coords.getY(), cd.radius, Paint.valueOf("red"))));
-                    }
-                    System.out.println("Circle size is: " + ((Double.valueOf(c1.decode().split("-")[0])) / GlobalVars.largestRadius) * 100d
-                            + "% with radius " + (Integer.valueOf(c1.decode().split("-")[0])));
-                    System.out.println();
-                    return;
-                } else if (c2.fitness == Integer.MAX_VALUE && Main.isValid(c2.getCircleData())) {
-                    System.out.println("Circle of generation " + GlobalVars.gen + " is a valid solution");
-                    if (Main.pane != null) {
-                        CircleData cd = c2.getCircleData();
-                        Platform.runLater(() -> Main.draw(new Circle(cd.coords.getX(), cd.coords.getY(), cd.radius, Paint.valueOf("red"))));
-                    }
-                    System.out.println("Circle size is: " + ((Double.valueOf(c2.decode().split("-")[0])) / GlobalVars.largestRadius) * 100d
-                            + "% with radius " + (Integer.valueOf(c2.decode().split("-")[0])));
-                    System.out.println();
-                    return;
-                }
-
-                // add chromosomes to new pool
-                newPool.add(c1);
-                newPool.add(c2);
-            }
-
-            // prepare for next iteration
-            pool.addAll(newPool);
-            newPool.clear();
-            GlobalVars.gen++;
-
-
-            //gc.Chromosome fittest = gc.Main.selectFittest(pool);
-            //String[] genes = fittest.decode().split("-");
-            //pool.add(fittest);
-            //Platform.runLater(() -> {gc.Main.draw(Integer.valueOf(genes[1]), Integer.valueOf(genes[2]), Integer.valueOf(genes[0]));});
-
-            // will run algorithm faster
-            if (Main.pane != null)
-                Platform.runLater(() -> Main.draw(-1, -1, -1));
-        }
+        genText.setText("Final generation: " + gen);
     }
 }

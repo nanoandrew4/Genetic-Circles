@@ -2,28 +2,33 @@ package gc;
 
 import kn.uni.voronoitreemap.j2d.Point2D;
 
+import java.util.Random;
+
 /*
     Contains and manipulates all chromosome data
  */
 
 public class Chromosome {
 
+    private Random rand;
+    
+    private StringBuffer chromo; // encoded chromosome in binary
+    
+    double fitness; // fitness score
     static int maxSize; // max size of initial chromosome
 
-    private StringBuffer chromo; // encoded chromosome in binary
-    double fitness; // fitness score
-
     // initializes chromosome with random size and coordinates
-    Chromosome() {
+    Chromosome(Point2D[] circles, Random rand, int largestRadius) {
+        this.rand = rand;
         chromo = new StringBuffer(Main.geneLength * 3);
 
-        int size = GlobalVars.rand.nextInt(maxSize);
+        int size = rand.nextInt(maxSize);
         addGene(size); // first gene is size of circle
-        addGene(GlobalVars.rand.nextInt(GlobalVars.screenWidth - size)); // second gene is center x-coord of circle
-        addGene(GlobalVars.rand.nextInt(GlobalVars.screenHeight - size)); // third gene is center y-coord of circle
+        addGene(rand.nextInt(GlobalVars.screenWidth - size)); // second gene is center x-coord of circle
+        addGene(rand.nextInt(GlobalVars.screenHeight - size)); // third gene is center y-coord of circle
 
         // calculates initial fitness
-        calcFitness();
+        calcFitness(circles, largestRadius);
     }
 
     // adds gene to the chromosome, encoded in binary
@@ -51,7 +56,7 @@ public class Chromosome {
     }
 
     // calculates fitness of circle
-    void calcFitness() {
+    void calcFitness(Point2D[] circles, int largestRadius) {
         /*
             If chromosome generates a circle that fits the specifications provided by proximityToMax variable, which is used
             to determine how close to the max circle specified by the voronoi diagram the circle has to get to be considered
@@ -62,24 +67,24 @@ public class Chromosome {
             but fitness score is decreased
          */
         String[] genes = decode().split("-");
-        if (Integer.valueOf(genes[0]) >= GlobalVars.largestRadius * GlobalVars.proximityToMax)
+        if (Integer.valueOf(genes[0]) >= largestRadius * GlobalVars.proximityToMax)
             fitness = Integer.MAX_VALUE;
         else
-            fitness = 1 / Math.abs(GlobalVars.largestRadius - (Integer.valueOf(genes[0])));
+            fitness = 1 / Math.abs(largestRadius - (Integer.valueOf(genes[0])));
 
-        if (!Main.isValid(getCircleData()))
+        if (!Main.isValid(getCircleData(), circles))
             fitness /= 5;
 
     }
 
     // swaps bits from chromosomes from a random position, either forward or backwards
     void crossover(Chromosome c) {
-        if (GlobalVars.rand.nextDouble() > GlobalVars.crossoverRate)
+        if (rand.nextDouble() > GlobalVars.crossoverRate)
             return;
 
-        int pos = GlobalVars.rand.nextInt(chromo.length());
+        int pos = rand.nextInt(chromo.length());
 
-        if (GlobalVars.rand.nextBoolean())
+        if (rand.nextBoolean())
             for (int x = pos; x < chromo.length(); x++) {
                 char tmp = c.chromo.charAt(x);
                 c.chromo.setCharAt(x, this.chromo.charAt(x));
@@ -95,10 +100,10 @@ public class Chromosome {
 
     // mutates a random bit in the chromosome
     void mutate() {
-        if (GlobalVars.rand.nextDouble() > GlobalVars.mutationRate)
+        if (rand.nextDouble() > GlobalVars.mutationRate)
             return;
 
-        int pos = GlobalVars.rand.nextInt(chromo.length() - 1);
+        int pos = rand.nextInt(chromo.length() - 1);
         chromo.setCharAt(pos, chromo.charAt(pos) == '0' ? '1' : '0');
     }
 }

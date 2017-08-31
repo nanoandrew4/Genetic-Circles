@@ -11,10 +11,21 @@ Voronoi diagram generally works well with many circles, but as the number decrea
 
 Crossover currently is done with two chromosomes at a time, and selects a random point in the chromosome and either works forward or backward (determined randomly) to swap the bits of the chromosomes.
 
+The DataCollector class uses all threads available to it minus one to run the sequential iterations of the Genetic Algorithm instances. Using all threads speeds the data collection up enormously.
+Not all threads are started at once to prevent crashing due to excessive threads being created. The number of threads is capped at the threads available minus one, and once a thread is finished, a new one will start.
+
 # Usage
 Compile code with the java files in the src directory alongside the kn folder, which contains all the necessary code for the voronoi diagrams
 
+To use graphical version (Main class): java -jar GeneticCircles.jar ui [seed]
+The seed value is optional. Must be a positive integer
+
+To use non-graphical version (DataCollector class): java -jar GeneticCircles.jar headless [GenerateFile] [runs]
+GenerateFile is either true or false, and specifies whether the program should write the results to a text file
+Runs is a positive integer representing the number of iterations to do of the genetic algorithm with seed values starting from 0 and ending at (runs - 1)
+
 # Citation
+
 Voronoi diagrams computed with the algorithm found at this page: https://github.com/ArlindNocaj/power-voronoi-diagram
 
 Full citation as requested by the programmer of the above voronoi implementation:
