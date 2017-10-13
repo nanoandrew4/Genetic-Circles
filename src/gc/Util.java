@@ -12,11 +12,11 @@ public class Util {
 		long seconds = millis / 1000;
 		String time = "";
 
-		if (seconds / 86400 > 1)
+		if (seconds / 86400 >= 1)
 			time += String.valueOf(seconds / 86400) + " days, ";
-		if ((seconds / 3600) > 1)
+		if ((seconds / 3600) >= 1)
 			time += String.valueOf((seconds / 3600) % 24) + " hours, ";
-		if ((seconds / 60) > 1)
+		if ((seconds / 60) >= 1)
 			time += String.valueOf((seconds / 60) % 60) + " minutes, ";
 
 		time += String.valueOf(seconds % 60) + " seconds, ";
