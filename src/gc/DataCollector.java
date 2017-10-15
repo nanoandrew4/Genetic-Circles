@@ -1,32 +1,20 @@
 package gc;
 
 import java.awt.*;
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.util.Random;
 
 /*
-    Class that collects data on various runs of the genetic algorithm using different seeds
+    Class that collects data on various iterations of the genetic algorithm using different seeds
     No UI, just outputs data to the console
-    Currently outputs seed, final generation, radius of best circle found, runtime and generation that the best circle belongs to
     Uses one thread for each GeneticAlgorithm instance
  */
 
 public class DataCollector {
 
-	private long start, finish; // values to time the total runtime of all threads
-
-	static int runs; // how many times to run the algorithm
-
-	static String[] outputs;
-
-	static boolean generateFile = true; // generates text file based on output from console
-
-	DataCollector() {
+	DataCollector(boolean sequential, int offset, int iterations) {
 
 		// init static array for use in file generation
-		outputs = new String[runs];
+		String[] outputs = new String[iterations];
 
 		// depending on window size, encoded chromosome length will vary due to more digits being present to represent bigger numbers
 		if (GlobalVars.SCREEN_HEIGHT > GlobalVars.SCREEN_WIDTH) {
@@ -40,9 +28,11 @@ public class DataCollector {
 		System.out.println("Generating point arrays");
 
 		// generates data to be used by each thread for fast access after
-		Main.circles = new Point[runs][];
-		for (int x = 0; x < runs; x++) {
-			Random rand = new Random(x);
+		Main.circles = new Point[iterations][];
+		int[] seeds = new int[iterations];
+		Random seedGen = new Random();
+		for (int x = 0; x < iterations; x++) {
+			Random rand = new Random(seeds[x] = (sequential ? x + offset : seedGen.nextInt()));
 			Main.circles[x] = new Point[rand.nextInt(100)];
 			for (int i = 0; i < Main.circles[x].length; i++) {
 				Main.circles[x][i] = new Point(rand.nextInt(GlobalVars.SCREEN_WIDTH - 2 * GlobalVars.STAT_CIRCLE_RADIUS) + GlobalVars.STAT_CIRCLE_RADIUS,
@@ -52,69 +42,62 @@ public class DataCollector {
 
 		System.out.println("Point arrays generated");
 
-		GeneticAlgorithm[] threads = new GeneticAlgorithm[GlobalVars.THREADS - 1 < runs ? GlobalVars.THREADS - 1 : runs];
-		String[] outputs = new String[runs];
+		GeneticAlgorithm[] threads = new GeneticAlgorithm[GlobalVars.THREADS < iterations ? GlobalVars.THREADS : iterations];
 
-		System.out.println("Starting threaded run");
-		System.out.println();
+		System.out.println("Starting threaded run\n");
 
-		start = System.currentTimeMillis();
+		long start = System.currentTimeMillis();
 
 		// launches initial threads
-		for (int x = 0; x < threads.length; x++) {
-			threads[x] = new GeneticAlgorithm(Main.circles[x], x);
-			threads[x].setDaemon(true);
-			threads[x].setPriority(8);
-			threads[x].start();
+		for (int i = 0; i < threads.length; i++) {
+			threads[i] = new GeneticAlgorithm(Main.circles[i], seeds[i]);
+			threads[i].setDaemon(true);
+			threads[i].setPriority(9);
+			threads[i].start();
 		}
 
+		System.out.println("Initial batch of threads successfully launched\n");
+
+		int threadNum = 0;
+
 		// once a thread is done, a new one with a new set of data is launched
-		for (int x = threads.length; x < runs; ) {
+		int sumOfRadii = 0;
+		for (int i = threads.length; i < iterations; ) {
 			for (int a = 0; a < threads.length; a++) {
-				if (threads[a].isDone() && x < runs) {
-					outputs[(int) threads[a].getSeed()] = threads[a].getOutput();
-					threads[a] = new GeneticAlgorithm(Main.circles[x], x);
+				if (threads[a].getDone() && i < iterations) {
+					outputs[threadNum++] = threads[a].getOutput();
+					sumOfRadii += threads[a].getSharedData().largestRadius;
+					threads[a] = new GeneticAlgorithm(Main.circles[i], seeds[i]);
 					threads[a].setDaemon(true);
-					threads[a].setPriority(8);
+					threads[a].setPriority(9);
 					threads[a].start();
-					x++;
+					i++;
 				}
 			}
 
 			try {
-				Thread.sleep(500);
+				Thread.sleep(200);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
 		}
 
-		System.out.println("Waiting for last threads to finish");
-		System.out.println();
+		System.out.println("Waiting for last threads to finish\n");
 
 		// waits for last threads to finish
-		for (GeneticAlgorithm thread : threads)
-			try {
-				thread.join();
-				outputs[(int) thread.getSeed()] = thread.getOutput();
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-
-		finish = System.currentTimeMillis();
-
-		// generates a text file if it was requested in the program launch
-		if (generateFile) {
-			try {
-				BufferedWriter bf = new BufferedWriter(new FileWriter("GeneticCircles-" + runs + "iterations.txt"));
-				for (String str : outputs)
-					bf.write(str + "\n");
-				bf.write("Total time " + (double) (finish - start) / 1000 + "s");
-				bf.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+		for (GeneticAlgorithm geneticAlgorithm : threads) {
+			while (!geneticAlgorithm.getDone())
+				try {Thread.sleep(200);} catch (InterruptedException e) {e.printStackTrace();}
+			outputs[threadNum++] = geneticAlgorithm.getOutput();
+			sumOfRadii += geneticAlgorithm.getSharedData().largestRadius;
 		}
 
-		System.out.println("Total time " + (double) (finish - start) / 1000 + "s");
+		long finish = System.currentTimeMillis();
+
+		if (Main.outputFileName != null)
+			Main.writeToFile(outputs);
+
+		System.out.println("Total time " + Util.getRunTime(finish - start));
+		System.out.println("Average radius was: " + (sumOfRadii / iterations));
 	}
 }

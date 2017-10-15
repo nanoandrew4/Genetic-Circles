@@ -8,15 +8,12 @@ import java.util.Random;
  */
 
 class SharedData {
-	// in current genetic algorithm instance, largest valid radius found
-	int largestRadius = 1;
-	// for current genetic algorithm instance, set of static circles
-	Point[] circles;
 
-	// in current genetic algorithm instance, current generation
-	int gen;
-	// in current genetic algorithm instance, last gen a better genetic circle was found
-	int lastUpdate;
+	int largestRadius = 1; // in current genetic algorithm instance, largest valid radius found
+	Point[] circles; // for current genetic algorithm instance, set of static circles
+
+	int gen; // in current genetic algorithm instance, current generation
+	int lastUpdate; // in current genetic algorithm instance, last gen a better genetic circle was found
 
 	SharedData(Point[] circles) {
 		this.circles = circles;
@@ -31,7 +28,7 @@ public class Chromosome {
 	private Random rand;
 
 	private StringBuffer chromo; // encoded chromosome in binary
-	private SharedData sharedData;
+	private SharedData sharedData; // data to be shared with all chromosomes
 
 	double fitness; // fitness score
 	static int maxSize; // max size of initial chromosome
@@ -47,7 +44,6 @@ public class Chromosome {
 		addGene(rand.nextInt(GlobalVars.SCREEN_WIDTH - size)); // second gene is center x-coord of circle
 		addGene(rand.nextInt(GlobalVars.SCREEN_HEIGHT - size)); // third gene is center y-coord of circle
 
-		// calculates initial fitnessInteger.valueOf(genes[0])
 		calcFitness(geneticCircle);
 	}
 

@@ -2,8 +2,13 @@ package gc;
 
 import java.awt.*;
 
+/*
+	Contains static functions used in the program
+ */
+
 public class Util {
-	// calculates eucledian distance between two points
+
+	// calculates euclidean distance between two points
 	static double calcEucledianDistance(int cx, int cy, Point p2) {
 		return Math.sqrt(Math.pow(cx - p2.getX(), 2) + Math.pow(cy - p2.getY(), 2));
 	}

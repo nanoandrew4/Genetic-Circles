@@ -3,6 +3,9 @@ package gc;
 import javafx.application.Application;
 
 import java.awt.*;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 
 /*
@@ -11,74 +14,123 @@ import java.util.ArrayList;
 
 public class Main {
 
-	static long seed;
+	static long seed = System.currentTimeMillis();
 	static int geneLength;
+
+	static String outputFileName;
 
 	static Point[][] circles;
 
 	public static void main(String[] args) {
-		String generalInfo = "Run program with no arguments to output help on usage";
-		if (args.length == 1 && args[0].equals("ui")) {
-			seed = System.currentTimeMillis();
-			launchUI();
-		} else if (args[0].equals("ui")) {
-			try {
-				seed = Integer.valueOf(args[1]);
-				if (seed < 0) {
-					System.out.println("Illegal argument. Please enter positive integer to be used as seed. " + generalInfo);
-					return;
+
+		boolean sequential = true;
+		int offset = 0, iterations = 1;
+
+		if (args.length == 0) {
+			System.out.println("Command syntax: java -jar GeneticCircles.jar [mode] [options]\n");
+			System.out.println("Modes:\n");
+			System.out.println("\tui: runs program with graphical interface to visualize results");
+			System.out.println("\truns program without graphical interface, can run multiple instances of the algorithm (see mode specific options)\n");
+			System.out.println("Options:\n");
+			System.out.println("\t-sw: Screen width, default is: " + GlobalVars.SCREEN_WIDTH + "\n");
+			System.out.println("\t-sh: Screen height, default is: " + GlobalVars.SCREEN_HEIGHT + "\n");
+			System.out.println("\t-t: Number of threads the program can use, default is all, which on this computer is: " + GlobalVars.THREADS +
+					". \n\t    Only used when using headless mode, since ui mode only evolves one circle with one set of settings\n");
+			System.out.println("\t-ps: Pool size, also known as population size, default is: " + GlobalVars.POOL_SIZE + "\n");
+			System.out.println("\t-bg: Number of generations to evolve without any improvement. \n" +
+					"\t     If bg = 5 and no improvements are found for the next 5 generations, the algorithm will stop, default is: " + GlobalVars.BAD_GENERATIONS + "\n");
+			System.out.println("\t-scr: Radius of the static circles on the screen, default is: " + GlobalVars.STAT_CIRCLE_RADIUS + "\n");
+			System.out.println("\t-cr: Crossover rate, specifies how likely the two chromosomes are to perform crossover, default value is: " + GlobalVars.CROSSOVER_RATE + "\n");
+			System.out.println("\t-mr: Mutation rate, specifies how likely a function is to mutate, default value is: " + GlobalVars.MUTATION_RATE + "\n");
+			System.out.println("\t-w: Output file name to write to, if output should be stored in a file\n");
+			System.out.println("\t-s: Seed to be used in random number generator, if none is entered the program will use the current time in milliseconds since the epoch\n");
+			System.out.println("Mode specific options:\n");
+			System.out.println("\tHeadless:\n");
+			System.out.println("\t\t-hr: Random seeds used, default is sequential seeds based on offset and iterations\n");
+			System.out.println("\t\t-ho: Offset to use for seeds when running sequentially. \n\t\t     Default is: " + offset + " which the first seed will be 0, the second 1 and so on\n");
+			System.out.println("\t\t-hi: Number of iterations to run of the algorithm, default is: " + iterations + "\n");
+			return;
+		}
+		if (!args[0].equals("ui") && !args[0].equals("headless")) {
+			System.out.println("First argument must be specified, to determine mode to run program in");
+			System.out.println("Current supported modes are:");
+			System.out.println("ui -> runs program with graphical interface to visualize results");
+			System.out.println("headless -> runs program without graphical interface");
+		}
+		if (args.length % 2 == 0) {
+			System.out.println("Invalid arguments");
+		}
+		try {
+			for (int i = 0; i < args.length; i++) {
+				switch (args[i]) {
+					case "-s": // seed
+						seed = Integer.valueOf(args[i + 1]);
+						break;
+					case "-w": // output file name
+						outputFileName = args[i + 1];
+						break;
+					case "-t": // processing cores (threads) to use
+						GlobalVars.THREADS = Integer.valueOf(args[i + 1]);
+						break;
+					case "-sw": // virtual (and physical if in ui mode) screen width
+						GlobalVars.SCREEN_WIDTH = Integer.valueOf(args[i + 1]);
+						break;
+					case "-sh": // virtual (and physical if in ui mode)
+						GlobalVars.SCREEN_HEIGHT = Integer.valueOf(args[i + 1]);
+						break;
+					case "-ps": // pool size (genetic algorithm)
+						GlobalVars.POOL_SIZE = Integer.valueOf(args[i + 1]);
+						break;
+					case "-bg": // bad generations
+						GlobalVars.BAD_GENERATIONS = Integer.valueOf(args[i + 1]);
+						break;
+					case "-cr": // cross-over rate
+						GlobalVars.CROSSOVER_RATE = Integer.valueOf(args[i + 1]);
+						break;
+					case "-mr": // mutation rate
+						GlobalVars.MUTATION_RATE = Integer.valueOf(args[i + 1]);
+						break;
+					case "-scr": // static circle radius
+						GlobalVars.STAT_CIRCLE_RADIUS = Integer.valueOf(args[i + 1]);
+						break;
+					case "-hr": // random set of iterations for DataCollector
+						sequential = false;
+						break;
+					case "-ho": // offset for sequential reads
+						offset = Integer.valueOf(args[i + 1]);
+						break;
+					case "-hi": // number of iterations to run in headless mode
+						iterations = Integer.valueOf(args[i + 1]);
+						break;
 				}
-				GlobalVars.BAD_GENERATIONS = Integer.valueOf(args[2]);
-				if (GlobalVars.BAD_GENERATIONS < 0) {
-					System.out.println("Illegal argument. Please enter a positive integer for badGenerations. " + generalInfo);
-					return;
-				}
-			} catch (Exception e) {
-				System.out.println(generalInfo);
-				return;
-			}
-			launchUI();
-		} else if (args[0].equals("headless")) {
-			if ((args[1].equals("true") || args[1].equals("false")))
-				DataCollector.generateFile = args[1].equals("true");
-			else {
-				System.out.println("Second argument must be either \"true\" or \"false\". " + generalInfo);
-				return;
-			}
-			try {
-				DataCollector.runs = Integer.valueOf(args[2]);
-				if (DataCollector.runs < 1) {
-					System.out.println("Illegal argument. Runs value must be higher than 0. " + generalInfo);
-					return;
-				}
-				GlobalVars.BAD_GENERATIONS = Integer.valueOf(args[3]);
-				if (GlobalVars.BAD_GENERATIONS < 0) {
-					System.out.println("Illegal argument. badGenerations value must be greater than or equal to 0. " + generalInfo);
-					return;
-				}
-			} catch (Exception e) {
-				System.out.println(generalInfo);
-				return;
 			}
 
-			new DataCollector();
-		} else {
-			System.out.println("To use graphical version: java -jar GeneticCircles.jar ui [seed] [badGenerations]");
-			System.out.println("OPTIONAL: Seed argument is a positive integer representing the seed to be used when generating random numbers");
-			System.out.println("OPTIONAL: badGenerations is a positive integer representing the number of generations to be evolved after the newest change to the genetic circle. " +
-					"If badGenerations = 5000 and the generation of you current best genetic circle is 3000, the program will halt at generation 8001, unless it finds a better circle before then.");
-			System.out.println();
-			System.out.println("To use non-graphical version: java -jar GeneticCircles.jar headless [GenerateFile] [runs]");
-			System.out.println("GenerateFile is either true or false, and specifies whether the program should write the results to a text file");
-			System.out.println("Runs is a positive integer representing the number of iterations to do of the genetic algorithm " +
-					" with seed values starting from 0 and ending at (runs - 1)");
-			System.out.println("OPTIONAL: badGenerations is a positive integer representing the number of generations to be evolved after the newest change to the genetic circle. " +
-					"If badGenerations = 5000 and the generation of you current best genetic circle is 3000, the program will halt at generation 8001, unless it finds a better circle before then.");
+			if (args[0].equals("ui"))
+				launchUI();
+			else if (args[0].equals("headless"))
+				new DataCollector(sequential, offset, iterations);
+		} catch (Exception e) {
+			e.printStackTrace();
+			System.out.println("Invalid input. Run program with no arguments to output help on usage.");
 		}
 	}
 
 	private static void launchUI() {
 		new Thread(() -> Application.launch(UI.class)).start();
+	}
+
+	static void writeToFile(String... output) {
+		// generates a text file if it was requested in the program launch
+		if (Main.outputFileName != null) {
+			try {
+				BufferedWriter bf = new BufferedWriter(new FileWriter(outputFileName + (outputFileName.contains(".txt") ? "" : ".txt")));
+				for (String str : output)
+					bf.write(str);
+				bf.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 
 	// returns whether circle is out of bounds of the window
@@ -104,11 +156,12 @@ public class Main {
 	static Chromosome selectFittest(ArrayList<Chromosome> arr) {
 		double maxFitness = arr.get(0).fitness;
 		int fittest = 0;
-		for (int x = 1; x < arr.size(); x++)
+		for (int x = 1; x < arr.size(); x++) {
 			if (arr.get(x).fitness > maxFitness) {
 				maxFitness = arr.get(x).fitness;
 				fittest = x;
 			}
+		}
 
 		Chromosome c = arr.get(fittest);
 		arr.remove(c);
