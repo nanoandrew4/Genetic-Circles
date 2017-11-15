@@ -30,7 +30,9 @@ public class Main {
 			System.out.println("Command syntax: java -jar GeneticCircles.jar [mode] [options]\n");
 			System.out.println("Modes:\n");
 			System.out.println("\tui: runs program with graphical interface to visualize results");
-			System.out.println("\truns program without graphical interface, can run multiple instances of the algorithm (see mode specific options)\n");
+			System.out.println("\theadless: runs program 
+without 
+graphical interface, can run multiple instances of the algorithm (see mode specific options)\n");
 			System.out.println("Options:\n");
 			System.out.println("\t-sw: Screen width, default is: " + GlobalVars.SCREEN_WIDTH + "\n");
 			System.out.println("\t-sh: Screen height, default is: " + GlobalVars.SCREEN_HEIGHT + "\n");

@@ -11,6 +11,12 @@ Crossover currently is done with two chromosomes at a time, and selects a random
 The DataCollector class uses all threads available to it minus one to run the sequential iterations of the Genetic Algorithm instances.
 Not all threads are started at once to prevent crashing due to excessive threads being created. The number of threads is capped at the threads available minus one, and once a thread is finished, a new one will start.
 
+# Demo
+
+Want to see a quick demo of the program? Click the image below!
+
+[![IMAGE ALT TEXT HERE](http://img.youtube.com/vi/hLlKAg-am5M/0.jpg)](https://www.youtube.com/watch?v=hLlKAg-am5M)
+
 # Usage
 Compile code with the java files in the src directory
 
