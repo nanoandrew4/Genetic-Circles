@@ -1,25 +1,26 @@
 package gc;
 
-/*
-    This class contains all static variables accessed by various classes, or various instances of a class
-
+/**
+ * This class contains all global variables for use across the whole program.
  */
 
 public class GlobalVars {
 
-	// global window size
+	// Global window size
 	static int SCREEN_WIDTH = 1280;
 	static int SCREEN_HEIGHT = 720;
 
 	private static int availableProcessors = Runtime.getRuntime().availableProcessors();
-	// number of threads for the program to use, if running multiple instances of the genetic algorithm at once
-	static int THREADS = (int)((availableProcessors > 0 ? availableProcessors - 1 : availableProcessors) * 1.1);
 
-	static int POOL_SIZE = 30; // global pool size for the genetic algorithm
-	static int BAD_GENERATIONS = 10000; // number of generations without achieving a better result until genetic algorithm stops
+	// Number of threads for the program to use, if running multiple instances of the GA at once
+	static int THREADS = (int) ((availableProcessors > 0 ? availableProcessors - 1 : availableProcessors) * 1.1);
 
-	static int STAT_CIRCLE_RADIUS = 5; // pixel radius of static circles
+	static int POOL_SIZE = 30; // Global pool size for the genetic algorithm
+	static int BAD_GENERATIONS = 10000; // Number of generations without achieving a better result until GA stops
 
-	static double CROSSOVER_RATE = 0.7d; // see crossover function in gc.Chromosome class for utilization info
-	static double MUTATION_RATE = 0.01d; // see mutation function in gc.Chromosome class for utilization info
+	static int STAT_CIRCLE_RADIUS = 5; // Pixel radius of static circles
+
+	// Variables used in the Chromosome class, to determine rate of crossover and mutation
+	static double CROSSOVER_RATE = 0.7d;
+	static double MUTATION_RATE = 0.01d;
 }

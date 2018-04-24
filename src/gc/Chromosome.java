@@ -3,104 +3,157 @@ package gc;
 import java.awt.*;
 import java.util.Random;
 
-/*
-    Contains and manipulates all chromosome data
+/**
+ * Contains data that is shared across all chromosomes.
  */
-
 class SharedData {
+	int largestRadius = 1; // Largest valid radius found by genetic algorithm
+	Point[] circles; // Array of static circles in the virtual screen
 
-	int largestRadius = 1; // in current genetic algorithm instance, largest valid radius found
-	Point[] circles; // for current genetic algorithm instance, set of static circles
-
-	int gen; // in current genetic algorithm instance, current generation
-	int lastUpdate; // in current genetic algorithm instance, last gen a better genetic circle was found
+	int gen; // Current generation being evolved
+	int lastUpdate; // Generation the largest radius was found
 
 	SharedData(Point[] circles) {
 		this.circles = circles;
-		largestRadius = 0;
-		gen = 0;
-		lastUpdate = 0;
+		largestRadius = gen = lastUpdate = 0;
 	}
 }
 
 public class Chromosome {
-
 	private Random rand;
+	private StringBuffer chromo; // Encoded circle data in binary
+	private SharedData sharedData; // Data to be shared with all chromosomes
 
-	private StringBuffer chromo; // encoded chromosome in binary
-	private SharedData sharedData; // data to be shared with all chromosomes
+	double fitness; // Fitness score
+	static int maxSize; // Max size of initial chromosome
 
-	double fitness; // fitness score
-	static int maxSize; // max size of initial chromosome
-
-	// initializes chromosome with random size and coordinates
+	/**
+	 * Initializes instance of a chromosome, encodes the data for a circle in binary (radius and coordinates on virtual
+	 * screen) and calculates the initial fitness of this chromosome.
+	 *
+	 * @param rand          Random number generator instance
+	 * @param sharedData    Shared data object that all chromosomes are to share
+	 * @param geneticCircle Circle data to be encoded in this chromosome
+	 */
 	Chromosome(Random rand, SharedData sharedData, CircleData geneticCircle) {
 		this.rand = rand;
 		this.sharedData = sharedData;
 		chromo = new StringBuffer(Main.geneLength * 3);
 
 		int size = rand.nextInt(maxSize);
-		addGene(size); // first gene is size of circle
-		addGene(rand.nextInt(GlobalVars.SCREEN_WIDTH - size)); // second gene is center x-coord of circle
-		addGene(rand.nextInt(GlobalVars.SCREEN_HEIGHT - size)); // third gene is center y-coord of circle
+		addGene(size); // First gene is size of circle
+		addGene(rand.nextInt(GlobalVars.SCREEN_WIDTH - size)); // Second gene is center x-coord of circle
+		addGene(rand.nextInt(GlobalVars.SCREEN_HEIGHT - size)); // Third gene is center y-coord of circle
 
 		calcFitness(geneticCircle);
 	}
 
-	// adds gene to the chromosome, encoded in binary
-	private void addGene(int i) {
-		String gene = Integer.toBinaryString(i);
-		for (int x = gene.length(); x < Main.geneLength; x++)
-			chromo.append('0');
-		chromo.append(gene);
+	/**
+	 * Encodes a gene in the chromosome, in binary. The chromosome will end up being a sequence of genes (binary nums)
+	 *
+	 * @param gene Integer to be converted to binary and encoded in the chromosome
+	 */
+	private void addGene(int gene) {
+		String geneBinary = Integer.toBinaryString(gene);
+		for (int x = geneBinary.length(); x < Main.geneLength; x++)
+			chromo.append('0'); // Pads gene so that each gene uses the same number of bits
+		chromo.append(geneBinary);
 	}
 
-	// decodes the chromosome binary to understandable format using numbers
+	/**
+	 * Decodes a chromosome to a regular integer, for better readability, and returns a sequence of genes in integer
+	 * format as a string.
+	 *
+	 * @return String representation of the sequence of genes encoded in the chromosome, as a sequence of integers
+	 */
 	private String decode() {
 		String decodedChromo = "";
 
 		for (int x = 0; x < chromo.length(); x += Main.geneLength)
-			decodedChromo += Integer.parseInt(chromo.substring(x, x + Main.geneLength), 2) + (x != chromo.length() - Main.geneLength ? "-" : "");
+			decodedChromo += Integer.parseInt(chromo.substring(x, x + Main.geneLength), 2)
+					+ (x != chromo.length() - Main.geneLength ? "-" : "");
 
 		return decodedChromo;
 	}
 
-	// returns new circle object with the data provided by the chromosome in this chromosome object
+	/**
+	 * Returns a 'CircleData' object with the data encoded in the chromosome. Used in 'calcFitness' method.
+	 *
+	 * @return 'CircleData' object with the data encoded in the chromosome.
+	 */
 	private CircleData getCircleData() {
 		String[] genes = decode().split("-");
 		return new CircleData(Integer.valueOf(genes[0]), Integer.valueOf(genes[1]), Integer.valueOf(genes[2]));
 	}
 
-	// calculates fitness of circle based on size relative to largestRadius in SharedData class
+	/**
+	 * Calculates the fitness of this chromosome. The fitness is the inverse of the difference between the largest
+	 * radius found and the radius of the circle this chromosome represents.
+	 *
+	 * @param geneticCircle 'CircleData' object of the best circle found at the present time
+	 */
 	void calcFitness(CircleData geneticCircle) {
 		CircleData c = getCircleData();
-		if (c.getRadius() >= sharedData.largestRadius && Main.isValid(c, sharedData.circles)) {
+		if (c.getRadius() > sharedData.largestRadius && isValid(c, sharedData.circles)) {
 			geneticCircle.setRadius(c.getRadius());
 			geneticCircle.setX(c.getX());
 			geneticCircle.setY(c.getY());
 			sharedData.largestRadius = c.getRadius();
 			sharedData.lastUpdate = sharedData.gen;
 			fitness = c.getRadius();
-		} else if (c.getRadius() >= sharedData.largestRadius && c.getRadius() != sharedData.largestRadius)
+		} else if (c.getRadius() == sharedData.largestRadius)
+			fitness = 1;
+		else
 			fitness = 1 / Math.abs(sharedData.largestRadius - c.getRadius());
-		else if (c.getRadius() == sharedData.largestRadius)
-			fitness = 1 / Math.abs(sharedData.largestRadius - c.getRadius() + 1);
 	}
 
-	// swaps bits from chromosomes from a random position, either forward or backwards
+	/**
+	 * Determines if a circle is in the bounds of the virtual screen.
+	 *
+	 * @param c Circle to check bounds for
+	 * @return True if out of bounds, false if in bounds
+	 */
+	private boolean outOfBounds(CircleData c) {
+		return c.getX() < c.getRadius() || c.getY() < c.getRadius()
+				|| c.getX() + c.getRadius() > GlobalVars.SCREEN_WIDTH
+				|| c.getY() + c.getRadius() > GlobalVars.SCREEN_HEIGHT;
+	}
+
+	/**
+	 * Determines if a circle intersects with any of the static circles that dot the virual screen.
+	 *
+	 * @param c Circle to check validity for
+	 * @param circles Array of static circles to check against the genetic circle
+	 * @return True if the genetic circle is valid, false if it intersects with any of the static circles
+	 */
+	private boolean isValid(CircleData c, Point[] circles) {
+		if (outOfBounds(c)) return false;
+		for (Point circle : circles) {
+			if (Util.calcEucledianDistance(c.getX(), c.getY(), circle) < c.getRadius() + GlobalVars.STAT_CIRCLE_RADIUS)
+				return false;
+		}
+		return true;
+	}
+
+	/**
+	 * Performs crossover on two chromosomes. A random position in the chromosome is chosen, then the bits are swapped
+	 * from the start to that position, or from that position to the end.
+	 *
+	 * @param c Chromosome to perform crossover with
+	 */
 	void crossover(Chromosome c) {
 		if (rand.nextDouble() > GlobalVars.CROSSOVER_RATE)
 			return;
 
 		int pos = rand.nextInt(chromo.length());
 
-		if (rand.nextBoolean())
+		if (rand.nextBoolean()) // Swap bits from random position to end of chromosome
 			for (int x = pos; x < chromo.length(); x++) {
 				char tmp = c.chromo.charAt(x);
 				c.chromo.setCharAt(x, this.chromo.charAt(x));
 				this.chromo.setCharAt(x, tmp);
 			}
-		else
+		else // Swap bits from start of chromosome to random position
 			for (int x = pos; x > 0; x--) {
 				char tmp = c.chromo.charAt(x);
 				c.chromo.setCharAt(x, this.chromo.charAt(x));
@@ -108,7 +161,9 @@ public class Chromosome {
 			}
 	}
 
-	// mutates a random bit in the chromosome
+	/**
+	 * Performs a mutation of the chromosome, by flipping a random bit in the chromosome.
+	 */
 	void mutate() {
 		if (rand.nextDouble() > GlobalVars.MUTATION_RATE)
 			return;

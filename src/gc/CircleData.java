@@ -1,11 +1,10 @@
 package gc;
 
-/*
-	This class holds a circles relevant data, used for storing info on genetic circle
+/**
+ * This class holds a circle's relevant data for use in the genetic algorithm.
  */
 
 public class CircleData {
-
 	private int x, y, radius;
 
 	CircleData(int x, int y, int radius) {
